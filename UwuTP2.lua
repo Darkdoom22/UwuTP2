@@ -1,16 +1,18 @@
 _addon.name = "UwuTP2"
 _addon.author = "Uwu/Darkdoom"
-_addon.version = "1.0"
+_addon.version = "1.0.1 - 6/15/2021"
 
 local resources = require('resources')
 local packets = require('packets')
 local files = require('files')
 local texts = require('texts')
+local bit = require('bit')
 require('strings')
 require('tables')
 require('functions')
 require('math')
 require('coroutine')
+require('pack')
 local progressbar = require('progressbar')
 
 local _DefaultSettings = {
@@ -134,22 +136,22 @@ _DefaultSettings["MoveList"] = {
 }
 
 local _ImageSettings = {
-    alpha = 255,
-    color = {
-        alpha = 230,
-        red = 255,
-        green = 255,
-        blue = 255,
+    ["alpha"] = 255,
+    ["color"] = {
+        ["alpha"] = 230,
+        ["red"] = 255,
+        ["green"] = 255,
+        ["blue"] = 255,
     }, 
-    pos = {
-        x = 1259,
-        y = 403,
+    ["pos"] = {
+        ["x"] = 1259,
+        ["y"] = 403,
     },
-    size = {
-        width = 16 * 4,
-        height = 16 * 4,
+    ["size"] = {
+        ["width"] = 16 * 4,
+        ["height"] = 16 * 4,
     },
-    draggable = false,
+    ["draggable"] = false,
 }
 
 local PlayerDisplay = require('PlayerDisplay')
@@ -168,6 +170,10 @@ end})
 
 local _WeaponSkills = setmetatable(resources.weapon_skills, {__index = function(t, k)
     return {name = "Unknown WS"}
+end})
+
+local _Items = setmetatable(resources.items, {__index = function(t, k)
+    return {name = "Unknown Item"}
 end})
 
 resources = nil
@@ -199,6 +205,9 @@ local function BuildTargetDisplayString(mobInfo)
 
     local displayString = "%s\n":format(mobInfo.Name).."[HP%] "..tostring(mobInfo.Hpp):lpad(' ', 6).."\n\n"
     .."[D]".."%d":format(tostring(mobInfo.Distance)):lpad(' ', 9).."\n".."%s":format(mobInfo.Enmity or "").."\n"..tostring(mobInfo.Action)
+    
+   -- local displayString = "%s\n[HP%] %s\n\n[D]%d\n%s\n%s":format(mobInfo.Name, mobInfo.Hpp, mobInfo.Distance)
+    
     return displayString
 
 end
@@ -210,19 +219,18 @@ local function BuildDisplayString(playerInfo)
     end
 
     if(playerInfo.Id == windower.ffxi.get_player().id)then
-        local displayString = "%s\n":format(playerInfo.Name).."[HP%] "..tostring(playerInfo.Hpp):lpad(' ', 2).."\n\n"
+        local displayString = "%s":format(playerInfo.Name).." %s\n":format(playerInfo.InMenu).."[HP%] "..tostring(playerInfo.Hpp):lpad(' ', 2).."\n\n"
     .."[MP%] "..tostring(playerInfo.Mpp):lpad(' ', 2).."\n\n".."[TP] "..tostring(playerInfo.Tp):lpad(' ', #tostring(playerInfo.Tp)+1).."\n\n"..tostring(playerInfo.Action)
         return displayString
     else
-        local displayString = "%s\n":format(playerInfo.Name).."[HP%] "..tostring(playerInfo.Hpp):lpad(' ', 2).."\n\n"
+        local displayString = "%s":format(playerInfo.Name).." %s\n":format(playerInfo.InMenu).."[HP%] "..tostring(playerInfo.Hpp):lpad(' ', 2).."\n\n"
         .."[MP%] "..tostring(playerInfo.Mpp):lpad(' ', 2).."[D]":lpad(' ',5).."%d":format(tostring(playerInfo.Distance)).."\n\n".."[TP] "..tostring(playerInfo.Tp):lpad(' ', #tostring(playerInfo.Tp)+1).."\n\n"..tostring(playerInfo.Action)
         return displayString
     end
 
 end
 
---rename this since am using for more than just initial load now, at some point
-function UwuTP:PopulateInitialBoxes()
+function UwuTP:PopulateBoxes()
 
     local partyInfo = windower.ffxi.get_party()
     local xOffset = 0
@@ -268,13 +276,18 @@ function UwuTP:PopulateInitialBoxes()
                 ["PartySlot"] = 0,
                 ["InputDelayLength"] = 0,
                 ["InputDelayFinishTime"] = 0,
+                ["InMenu"] = "",
             }
 
+            --make 2 rows of 3
             if(#UwuTP["PlayerStats"] == 3)then
                 defaults.pos.x = 1085
                 defaults.pos.y = defaults.pos.y + 185
             end
 
+            --I genuinely don't understand *how* this is offseting things properly, but it does
+            --probably some metatable weirdness with the psuedo-OO constructor and the object it's inheriting from? idek
+            --if it works!
             local hpBar = progressbar:New(_ImageSettings)
             hpBar:SetPos({x = defaults.pos.x + xOffset, y = defaults.pos.y + pbarYOffset + 45})
             hpBar:Show()
@@ -341,7 +354,7 @@ local function OnPartySizeChanged(size)
     UwuTP["PlayerStats"] = T{}
     UwuTP["PlayerDisplays"] = T{}
 
-    UwuTP:PopulateInitialBoxes()
+    UwuTP:PopulateBoxes()
 
 end
 
@@ -430,10 +443,10 @@ function UwuTP:UpdatePlayerStatus()
 
         if(type(v) == "table")then
 
-            for _,v2 in pairs(UwuTP["PlayerStats"]) do
+            for k2,v2 in pairs(UwuTP["PlayerStats"]) do
 
                 if(v.mob and v2.Id == v.mob.id)then
-                   
+
                     v2.Distance = v.mob.distance:sqrt() 
                     v2.Zone = v.zone
                     v2.Hpp = v.hpp
@@ -441,7 +454,13 @@ function UwuTP:UpdatePlayerStatus()
                     v2.Tp = v.tp
                     v2.PartySlot = k
                     v2.HPBar:SetPercent(v.hpp)
-                        
+                    --print(v.mob.status)
+                    if(v.mob.status == 4)then
+                        v2.InMenu = "(In Menu)"
+                    else
+                        v2.InMenu = ""
+                    end
+
                     if(v2.Hpp >= 75)then
                         v2.HPBar:SetFillColor(_Colors["Green"])
                     elseif(v2.Hpp < 75 and v2.Hpp >= 35)then
@@ -529,7 +548,7 @@ local function ActionString(param, tparam, category)
             if(_MobAbilities[tparam].name:len()<10)then
                 str = "[WS] %s":format(_MobAbilities[tparam].name)
             else
-                str = "[WS] %s.":format(_MobAbilities[tparam].name)
+                str = "[WS] %s.":format(_MobAbilities[tparam].name:sub(0, 10))
             end
             return str
 
@@ -567,24 +586,23 @@ function UwuTP:HandleActionEvent(packet)
 
     if(packet)then
 
-        local action = packets.parse('incoming', packet)
-        local actor = windower.ffxi.get_mob_by_id(action["Actor"]) or nil
-        local enemyTarget = windower.ffxi.get_mob_by_id(action["Target 1 ID"])
-        local category = action["Category"]
-        local param = action["Param"]
-        local t1param = action["Target 1 Action 1 Param"]
+        local actor = windower.ffxi.get_mob_by_id(packet:unpack('I', 6))
+        local recast, targetId = packet:unpack('b32b32', 15, 7)
+        local enemyTarget = windower.ffxi.get_mob_by_id(targetId)
+        local category, param = packet:unpack('b4b16', 11, 3)
+        local t1param = packet:unpack('b17', 27, 4)/4
    
         if(actor and actor.id == self["MobStats"]["Target"]["Id"])then
 
             self["MobStats"]["Target"]["Enmity"] = "[Enmity] %s":format(enemyTarget.name)
             if(self["MobStats"]["Target"]["Enmity"]:len()>20)then
-                self["MobStats"]["Target"]["Enmity"] = "%s%s":format(self["MobStats"]["Target"]["Enmity"]:sub(0,10),".")
+                self["MobStats"]["Target"]["Enmity"] = "%s%s":format(self["MobStats"]["Target"]["Enmity"]:sub(0,20),".")
             end
 
             local actionString = ActionString(param, t1param, category)
             self["MobStats"]["Target"]["Action"] = actionString
 
-            if(actionString ~= " " and (category == 8 or category == 6 or category == 6 or category == 11))then 
+            if(actionString ~= " " and (category == 8 or category == 6 or category == 11))then 
                 if(category == 8)then
                     self["MoveList"]:insert(_Spells[t1param].name)
                 elseif(category == 11)then
@@ -671,10 +689,10 @@ end
 
 windower.register_event('load', function()
 
-    UwuTP:PopulateInitialBoxes()
+    UwuTP:PopulateBoxes()
 
     UwuTP["MobDisplay"] = PlayerDisplay:New(_DefaultSettings["Enemy"], "")
-    UwuTP["MobDisplay"]:Show()
+   -- UwuTP["MobDisplay"]:Show()
 
     local target = windower.ffxi.get_mob_by_target('t') or nil
     local mobInfo = T{
@@ -709,7 +727,7 @@ windower.register_event('load', function()
 
     UwuTP["MoveListDisplay"] = texts.new(_DefaultSettings["MoveList"])
     UwuTP["MoveListDisplay"]:text("~[ MoveList ] ~ ")
-    UwuTP["MoveListDisplay"]:visible(true)
+   -- UwuTP["MoveListDisplay"]:visible(true)
 
 
 end)
