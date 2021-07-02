@@ -33,7 +33,7 @@ local _DefaultSettings = {
         ["red"] = 119,
         ["green"] = 247,
         ["blue"] = 237,
-        ["font"] = "IBM Plex Mono",
+        ["font"] = "Consolas",
     },
     ["bg"] = {
         ["alpha"] = 0,
@@ -55,7 +55,7 @@ defaults.flags.bold = true
 defaults.pos.x = 1259 
 defaults.pos.y = 403  
 defaults.text = {}
-defaults.text.font = 'IBM Plex Mono'
+defaults.text.font = 'Consolas'
 defaults.text.size = 11
 defaults.text.alpha = 255
 defaults.text.red = 119
@@ -82,7 +82,7 @@ _DefaultSettings["Enemy"] = {
         ["bold"] = true
     },
     ["text"] = {
-        ["font"] = "IBM Plex Mono",
+        ["font"] = "Consolas",
         ["size"] = 12,
         ["alpha"] = 255,
         ["red"] = 20,
@@ -113,7 +113,7 @@ _DefaultSettings["MoveList"] = {
         ["bold"] = true,
     },
     ["text"] = {
-        ["font"] = "IBM Plex Mono",
+        ["font"] = "Consolas",
         ["size"] = 11,
         ["alpha"] = 255,
         ["red"] = 82,
